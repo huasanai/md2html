@@ -269,6 +269,8 @@ function renderInline(nodes: InlineNode[], theme: ThemeConfig): string {
   return nodes
     .map((node) => {
       switch (node.type) {
+        case 'break':
+          return node.hard ? '<br>' : '\n'
         case 'text':
           return wrapLeaf(escapeHtml(toFullWidthPunctuation(node.content)))
 

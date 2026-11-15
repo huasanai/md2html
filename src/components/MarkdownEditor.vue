@@ -64,13 +64,14 @@ watch(
         </svg>
         <span class="text-sm font-medium text-gray-600">Markdown 编辑器</span>
         <span class="text-xs text-gray-300">|</span>
-        <span class="text-xs text-gray-400">也支持纯文本，点击 AI 增强会自动转换为 Markdown</span>
+        <span class="hidden lg:inline text-xs text-gray-400">支持 Markdown，原稿保留在本机</span>
       </div>
       <span class="text-xs text-gray-400">{{ editor.markdown.length }} 字符</span>
     </div>
 
     <!-- 编辑器 -->
     <textarea
+      aria-label="Markdown 正文"
       ref="textareaRef"
       :value="editor.markdown"
       @input="onInput"

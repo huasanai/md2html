@@ -4,6 +4,14 @@ import { useEditorStore } from '../stores/editor'
 
 const editor = useEditorStore()
 const copied = ref(false)
+const coverError = ref('')
+async function onCoverInput(event: Event) {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  coverError.value=''
+  if(file) { try { await editor.importCover(file) } catch(error) { coverError.value=error instanceof Error?error.message:String(error) } }
+  input.value=''
+}
 const iframeRef = ref<HTMLIFrameElement | null>(null)
 const previewContainerRef = ref<HTMLDivElement | null>(null)
 
@@ -95,8 +103,9 @@ function onPreviewScroll() {
 }
 
 function exportHtml() {
-  if (!editor.generatedHtml) return
-  const blob = new Blob([editor.generatedHtml], { type: 'text/html;charset=utf-8' })
+  const html = editor.exportHtml()
+  if (!html) return
+  const blob = new Blob([html], { type: 'text/html;charset=utf-8' })
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
@@ -144,6 +153,7 @@ function exportHtml() {
         <!-- 复制 -->
         <button
           v-if="hasContent"
+          :disabled="!editor.canCopy"
           @click="copy"
           class="rounded-lg bg-emerald-600 px-3 py-1 text-xs font-medium text-white transition-colors hover:bg-emerald-700"
         >
@@ -152,6 +162,16 @@ function exportHtml() {
       </div>
     </div>
 
+    <div class="flex flex-wrap items-center gap-2 border-b px-4 py-2 text-xs text-gray-600">
+      <label class="cursor-pointer rounded border px-2 py-1">导入封面<input class="sr-only" aria-label="导入封面" type="file" accept="image/png,image/jpeg" @change="onCoverInput"></label>
+      <span v-if="editor.coverName">{{ editor.coverName }}</span><button v-if="editor.coverName" @click="editor.removeCover()" class="underline">移除封面</button>
+      <span>封面仅本次预览使用；复制后手动插图。</span>
+      <p v-if="coverError" role="alert" class="w-full text-red-600">{{ coverError }}</p>
+    </div>
+    <div v-if="editor.renderError || editor.annotations.length" role="alert" class="bg-red-50 px-4 py-2 text-sm text-red-700">
+      {{ editor.renderError || `发现 ${editor.annotations.length} 条未决批注；预览已隐藏批注，处理后从工作稿移除再复制。` }}
+    </div>
+    <p v-if="editor.copyMessage" role="status" class="px-4 py-2 text-xs">{{ editor.copyMessage }}</p>
     <!-- 进度条 -->
     <div v-if="editor.loading" class="border-b border-emerald-100 bg-emerald-50/80 px-4 py-2.5">
       <div class="flex items-center gap-2.5">
@@ -186,6 +206,7 @@ function exportHtml() {
       ></iframe>
     </div>
 
+    <p class="px-4 py-1 text-xs text-gray-400">本地预览；公众号保存后及深色模式效果待实测。</p>
     <!-- 校验详情 -->
     <div
       v-if="editor.validationResult && (hasErrors || hasWarnings)"

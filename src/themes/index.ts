@@ -7,6 +7,7 @@
  */
 
 import type { ThemeConfig } from '../core/types'
+import { huasanClaude, huasanForest } from './huasan'
 import { moyuGreen } from './moyu-green'
 import { redWhite } from './red-white'
 import { graphiteMinimal } from './graphite-minimal'
@@ -16,6 +17,8 @@ import { oliveJournal } from './olive-journal'
 
 /** 所有已注册主题 */
 export const themes: ThemeConfig[] = [
+  huasanClaude,
+  huasanForest,
   moyuGreen,
   redWhite,
   graphiteMinimal,

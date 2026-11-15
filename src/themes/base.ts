@@ -147,7 +147,7 @@ export function createBaseComponents(v: DesignVars): Partial<ThemeComponents> {
         const numColor = highlighted ? 'rgba(255,255,255,0.75)' : v.mutedText
         const titleColor = highlighted ? '#fff' : v.titleColor
         const border = highlighted ? 'border:none;' : `border:1px solid ${v.borderColor};box-shadow:0 2px 6px rgba(0,0,0,0.04);`
-        return `<section style="display:inline-block;white-space:normal;vertical-align:top;width:110px;background:${bg};${border}border-radius:12px;padding:12px;margin-right:8px;">
+        return `<section style="display:block;flex:0 0 110px;box-sizing:border-box;white-space:normal;width:110px;background:${bg};${border}border-radius:12px;padding:12px;margin-right:8px;">
   <p style="font-size:9px;font-weight:700;letter-spacing:1px;margin:0 0 5px;color:${numColor};"><span leaf="">PART ${partLabel}</span></p>
   <p style="font-size:13px;font-weight:800;margin:0;line-height:1.4;color:${titleColor};"><span leaf="">${escapeHtml(toFullWidthPunctuation(title))}</span></p>
 </section>`
@@ -161,7 +161,7 @@ export function createBaseComponents(v: DesignVars): Partial<ThemeComponents> {
     <p style="font-size:10px;color:${v.mutedText};margin:0;text-transform:uppercase;letter-spacing:2px;font-weight:600;"><span leaf="">📦 ${total} Parts + Conclusion</span></p>
     <p style="font-size:10px;color:${v.mutedText};margin:0;"><span leaf="">👉 滑动</span></p>
   </section>
-  <section data-ignore-width style="overflow-x:scroll;-webkit-overflow-scrolling:touch;white-space:nowrap;padding-bottom:8px;">
+  <section data-ignore-width style="display:flex;align-items:stretch;overflow-x:scroll;-webkit-overflow-scrolling:touch;padding-bottom:8px;">
     ${cards}${last}
   </section>
 </section>`

@@ -39,7 +39,7 @@ watch(
 
 // 显示设置变更：立即重新渲染
 watch(
-  () => [settings.showCover, settings.showToc],
+  () => [settings.showCover, settings.showToc, settings.faithfulMode, settings.footerNote, settings.authorName, settings.authorBio],
   () => {
     editor.convertBasic()
   }
@@ -75,7 +75,7 @@ async function handleAIEnhance() {
 <template>
   <div class="flex h-screen flex-col bg-white">
     <!-- 顶部导航栏 -->
-    <header class="flex items-center justify-between border-b border-gray-200 bg-white px-4 py-3 shadow-sm">
+    <header class="flex flex-wrap gap-2 items-center justify-between border-b border-gray-200 bg-white px-4 py-3 shadow-sm">
       <!-- Logo -->
       <div class="flex items-center gap-2">
         <div class="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-600 text-white">
@@ -122,7 +122,7 @@ async function handleAIEnhance() {
 
     <!-- 未配置 LLM 提示 -->
     <div
-      v-if="!settings.isConfigured"
+      v-if="!settings.faithfulMode && !settings.isConfigured"
       class="flex items-center justify-between bg-amber-50 px-4 py-2 text-sm text-amber-700"
     >
       <span>⚠ 未配置 LLM API Key，预览为纯规则渲染。配置后可点击「AI 增强」获得关键词下划线、智能封面等效果。</span>
@@ -134,6 +134,10 @@ async function handleAIEnhance() {
       </button>
     </div>
 
+    <div class="flex flex-wrap items-center gap-3 border-b bg-stone-50 px-4 py-2 text-xs text-stone-600">
+      <label class="flex items-center gap-2"><input type="checkbox" v-model="settings.faithfulMode" @change="settings.saveDisplay()">保真排版</label>
+      <span>{{ settings.faithfulMode ? '保留字句与标点，不自动添加署名或引导。' : '增强模式可能增加封面、目录和互动引导。' }}</span>
+    </div>
     <!-- AI 增强失败提示 -->
     <div
       v-if="editor.enhanceError"
@@ -157,14 +161,14 @@ async function handleAIEnhance() {
     </div>
 
     <!-- 主体区域：编辑器 + 预览 -->
-    <main class="flex flex-1 overflow-hidden">
+    <main class="flex flex-col md:flex-row flex-1 min-h-0 overflow-hidden">
       <!-- 左侧编辑器 -->
-      <div class="w-1/2 border-r border-gray-200">
+      <div class="w-full md:w-1/2 h-1/3 md:h-full min-h-0 border-r border-gray-200">
         <MarkdownEditor />
       </div>
 
       <!-- 右侧预览 -->
-      <div class="w-1/2">
+      <div class="w-full md:w-1/2 h-2/3 md:h-full min-h-0">
         <PreviewPanel />
       </div>
     </main>
@@ -174,7 +178,7 @@ async function handleAIEnhance() {
       <!-- 左侧状态 -->
       <div class="flex items-center gap-3">
         <span v-if="editor.validationResult" class="text-xs text-gray-400">
-          span leaf: {{ editor.validationResult.leafCount }} 处
+          {{ editor.validationResult.passed ? '本地结构检查通过' : '请检查正文格式' }}
         </span>
         <span
           v-if="editor.enhanceResult"
@@ -187,6 +191,7 @@ async function handleAIEnhance() {
 
       <!-- AI 增强按钮 -->
       <button
+        v-if="!settings.faithfulMode"
         @click="handleAIEnhance"
         :disabled="editor.loading"
         class="flex items-center gap-2 rounded-xl px-6 py-2.5 text-sm font-bold shadow-md transition-all disabled:cursor-not-allowed disabled:opacity-50"

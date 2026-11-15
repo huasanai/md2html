@@ -115,7 +115,7 @@ function close() {
             <div class="flex items-center justify-between rounded-lg border border-gray-200 px-4 py-3">
               <div>
                 <div class="text-sm font-medium text-gray-700">显示目录</div>
-                <div class="text-xs text-gray-400">列出全部章节，可横向滚动浏览</div>
+                <div class="text-xs text-gray-400">保真模式只将明确提供的三项看点排成三栏</div>
               </div>
               <button
                 @click="settings.toggleToc()"
@@ -134,8 +134,9 @@ function close() {
         <!-- 分隔线 -->
         <hr class="my-6 border-gray-200" />
 
+        <section class="mb-6"><h3 class="mb-3 text-sm font-bold text-gray-700">文末说明（可选）</h3><textarea aria-label="文末说明" v-model="settings.footerNote" @input="settings.saveDisplay()" class="w-full rounded border p-3 text-sm" rows="4" placeholder="填写你确认的署名或关注引导；留空不添加。"></textarea></section>
         <!-- 署名设置 -->
-        <section class="mb-6">
+        <section v-if="!settings.faithfulMode" class="mb-6">
           <h3 class="mb-3 text-sm font-bold text-gray-700">文章署名</h3>
           <div class="space-y-4">
             <div>

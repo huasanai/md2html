@@ -9,6 +9,7 @@
 // ===== Markdown AST 类型 =====
 
 export type InlineNode =
+  | { type: 'break'; hard: boolean }
   | { type: 'text'; content: string }
   | { type: 'strong'; children: InlineNode[] }
   | { type: 'em'; children: InlineNode[] }
@@ -26,7 +27,7 @@ export type BlockNode =
   | { type: 'code_block'; lang: string; content: string }
   | { type: 'image'; src: string; alt: string }
   | { type: 'hr' }
-  | { type: 'list'; ordered: boolean; items: BlockNode[][] }
+  | { type: 'list'; ordered: boolean; items: BlockNode[][]; start?: number }
   | { type: 'list_item'; children: BlockNode[] }
   | { type: 'table'; headers: InlineNode[][]; rows: InlineNode[][][] }
 

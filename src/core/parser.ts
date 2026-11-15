@@ -130,6 +130,7 @@ function tokensToAST(tokens: Token[]): BlockNode[] {
     // ordered / bullet list
     if (token.type === 'ordered_list_open' || token.type === 'bullet_list_open') {
       const ordered = token.type === 'ordered_list_open'
+      const start = Number(token.attrGet('start') || 1)
       const items: BlockNode[][] = []
       i++
       while (i < tokens.length) {
@@ -154,7 +155,7 @@ function tokensToAST(tokens: Token[]): BlockNode[] {
           i++
         }
       }
-      blocks.push({ type: 'list', ordered, items })
+      blocks.push({ type: 'list', ordered, items, start })
       continue
     }
 
@@ -209,6 +210,11 @@ function parseInlineTokens(tokens: Token[]): InlineNode[] {
 
   while (i < tokens.length) {
     const token = tokens[i]
+
+    if (token.type === 'softbreak' || token.type === 'hardbreak') {
+      result.push({ type: 'break', hard: token.type === 'hardbreak' })
+      i++; continue
+    }
 
     if (token.type === 'text') {
       result.push({ type: 'text', content: token.content })
@@ -325,6 +331,8 @@ export function inlineToPlainText(nodes: InlineNode[]): string {
   return nodes
     .map((n) => {
       switch (n.type) {
+        case 'break':
+          return '\n'
         case 'text':
           return n.content
         case 'code':
@@ -341,8 +349,10 @@ export function inlineToPlainText(nodes: InlineNode[]): string {
 }
 
 /** 主解析函数 */
-export function parseMarkdown(content: string): MarkdownDoc {
-  const tokens = md.parse(content, {})
+export function parseMarkdown(content: string, inspectLinks = false): MarkdownDoc {
+  const parser = inspectLinks ? createMD() : md
+  if (inspectLinks) parser.validateLink = () => true // faithful renderer explicitly validates and reports rejected URLs
+  const tokens = parser.parse(content, {})
   const blocks = tokensToAST(tokens)
   const { title, titleBlockIdx } = extractTitle(blocks)
   return { title, titleBlockIdx, blocks }

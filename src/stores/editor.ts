@@ -9,6 +9,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { AIEnhanceResult, ValidationResult } from '../core/types'
+import { renderFaithful, prepareSource } from '../core/faithful'
 import { parseMarkdown } from '../core/parser'
 import { generateHtml } from '../core/generator'
 import { validateGzhHtml } from '../core/validator'
@@ -78,35 +79,31 @@ export const useEditorStore = defineStore('editor', () => {
   // Markdown 内容
   const markdown = ref<string>(
     localStorage.getItem(MD_STORAGE_KEY) ||
-      `# 欢迎使用 md2html 公众号排版工具
+      `# 把答案交给 AI，把判断留给自己
 
-> 把 Markdown 一键排成可直接粘贴进微信公众号编辑器的精致 HTML。
+> 好的问题，让我们看见自己的假设。
 
-## 为什么需要这个工具
+表达清楚与判断可靠，需要分别检查。这里保留原文字句，只调整版式。
 
-微信公众号编辑器对 HTML 有诸多限制：不支持 \`<style>\` 标签、不支持 CSS class、不支持 \`position:fixed\`。如果你直接粘贴普通 HTML，样式会大面积丢失。
+## 本期看点
 
-这个工具把所有样式**内联**，并用 \`<span leaf="">\` 包裹所有文字，确保粘贴后格式不丢。
+- 从答案退回问题
+- 把假设放到桌面
+- 用行动检验判断
 
-## 核心功能
+## 从答案退回问题
 
-- **6 套精选主题**：每套都是自成体系的组件库
-- **AI 智能排版**：自动标记关键词下划线、生成封面文案
-- **合规校验**：确定性检查公众号平台限制
-- **一键复制**：点一下直接粘贴到公众号编辑器
+先问一句：**我到底要做什么决定？**
 
-## 快速开始
+## 把假设放到桌面
 
-1. 在左侧编辑器写 Markdown
-2. 选择主题
-3. 预览实时渲染，点击「AI 增强」获得更佳效果
-4. 点击「复制到公众号」
+将事实与解释分开，寻找能改变判断的证据。
 
-> 提示：首次使用前请先配置 LLM API Key，以获得 AI 增强效果。
+> 不急着把解释写成结论。
 
-## 总结
+## 写在最后
 
-试着把你的文章粘贴到左边，预览会实时渲染。配置 LLM 后点击「AI 增强」获得更佳效果！
+把下一步做小，把验证标准说清楚。
 `
   )
 
@@ -117,6 +114,25 @@ export const useEditorStore = defineStore('editor', () => {
 
   // 生成的 HTML
   const generatedHtml = ref<string>('')
+  const bodyHtml = ref('')
+  const renderError = ref('')
+  const annotations = ref<string[]>([])
+  const coverData = ref('')
+  const coverName = ref('')
+  const copyMessage = ref('')
+
+  const canCopy = computed(() => !!generatedHtml.value && !renderError.value && !annotations.value.length && !(validationResult.value?.errors.length))
+
+  async function importCover(file: File) {
+    if (!['image/png','image/jpeg'].includes(file.type) || file.size > 12*1024*1024) throw new Error('请选择 12MB 以内的 PNG 或 JPEG 封面。')
+    const data = await new Promise<string>((resolve,reject)=> { const reader=new FileReader();reader.onload=()=>resolve(String(reader.result));reader.onerror=()=>reject(new Error('封面读取失败'));reader.readAsDataURL(file) })
+    await new Promise<void>((resolve,reject)=>{ const img=new Image();img.onload=()=>Math.abs(img.width/img.height-2.35)<0.03?resolve():reject(new Error('封面比例应为 2.35:1，请先生成完整封面。'));img.onerror=()=>reject(new Error('图片无法解码'));img.src=data })
+    coverData.value=data;coverName.value=file.name;convertBasic()
+  }
+  function removeCover() {coverData.value='';coverName.value='';convertBasic()}
+  function combineCover(html: string): string {
+    return coverData.value && useSettingsStore().showCover ? `<section style="margin:0 0 26px;"><span leaf=""><img src="${coverData.value}" alt="文章封面" style="display:block;max-width:100%;height:auto;margin:0 auto;"></span></section>${html}` : html
+  }
 
   // 校验结果
   const validationResult = ref<ValidationResult | null>(null)
@@ -162,8 +178,17 @@ export const useEditorStore = defineStore('editor', () => {
   function convertBasic() {
     try {
       const settings = useSettingsStore()
-      const doc = parseMarkdown(markdown.value)
-      const html = generateHtml(doc, {
+      renderError.value = ''
+      let html: string
+      if (settings.faithfulMode) {
+        const result = renderFaithful(markdown.value, currentTheme.value, settings.showToc, settings.footerNote)
+        html = result.html
+        annotations.value = result.annotations
+      } else {
+      const prepared = prepareSource(markdown.value)
+      annotations.value = prepared.annotations
+      const doc = parseMarkdown(prepared.markdown)
+      html = generateHtml(doc, {
         theme: currentTheme.value,
         enhance: enhanceResult.value,
         authorName: settings.authorName || undefined,
@@ -171,9 +196,14 @@ export const useEditorStore = defineStore('editor', () => {
         showCover: settings.showCover,
         showToc: settings.showToc,
       })
-      generatedHtml.value = html
+      }
+      bodyHtml.value = html
+      generatedHtml.value = combineCover(html)
       validationResult.value = validateGzhHtml(html)
+      if(settings.faithfulMode) validationResult.value.warnings = validationResult.value.warnings.filter(w=>!w.message.includes('半角标点'))
     } catch (err) {
+      generatedHtml.value = '';bodyHtml.value = '';validationResult.value = null
+      renderError.value = err instanceof Error ? err.message : String(err)
       console.error('渲染失败:', err)
     }
   }
@@ -195,6 +225,7 @@ export const useEditorStore = defineStore('editor', () => {
   // 自动检测：如果内容不是 Markdown，先转换为 Markdown 再增强
   async function enhanceWithAI(): Promise<{ success: boolean; message?: string }> {
     const settings = useSettingsStore()
+    if (settings.faithfulMode) return { success:false, message:'保真模式不使用 AI 增强。' }
     if (!settings.isConfigured) {
       return { success: false, message: '请先配置 LLM API Key' }
     }
@@ -241,16 +272,7 @@ export const useEditorStore = defineStore('editor', () => {
 
       // 用 AI 结果重新生成
       progressMessage.value = '正在生成 HTML...'
-      const html = generateHtml(doc, {
-        theme: currentTheme.value,
-        enhance,
-        authorName: settings.authorName || undefined,
-        authorBio: settings.authorBio || undefined,
-        showCover: settings.showCover,
-        showToc: settings.showToc,
-      })
-      generatedHtml.value = html
-      validationResult.value = validateGzhHtml(html)
+      convertBasic()
 
       progressMessage.value = ''
       return { success: true }
@@ -274,8 +296,14 @@ export const useEditorStore = defineStore('editor', () => {
   //
   // 所以这里直接把「生成好的 HTML 字符串」写进剪贴板，不经 DOM 序列化。
   async function copyToClipboard(): Promise<boolean> {
-    const html = generatedHtml.value
-    if (!html) return false
+    copyMessage.value = ''
+    if (!canCopy.value) { copyMessage.value='请先解决正文错误或移除已处理的批注，再复制。'; return false }
+    // Always render current input; a click can arrive before the debounce finishes.
+    convertBasic()
+    if (!canCopy.value) return false
+    const hasCover = !!coverData.value && useSettingsStore().showCover
+    const html = (hasCover ? '<p><span leaf="">【请在此手动插入封面】</span></p>' : '') + bodyHtml.value
+    copyMessage.value = hasCover ? '正文已复制；请在顶部标记处手动插入封面。' : '正文已复制；请粘贴、保存并重新打开检查。'
 
     // 主路径：Clipboard API 直接写入（localhost / https 下可用）
     // 注意：调用前不能再 await 其它东西，否则会丢失用户手势。
@@ -294,15 +322,20 @@ export const useEditorStore = defineStore('editor', () => {
       console.warn('Clipboard API 写入失败，降级为 iframe 复制:', err)
     }
 
-    return legacyCopyViaIframe(html)
+    const success = await legacyCopyViaIframe(html)
+    if (!success) copyMessage.value='浏览器未能复制，请导出 HTML 或更换浏览器重试。'
+    return success
   }
 
   // 导出 HTML 文件
   function exportHtml(): string {
+    convertBasic()
+    if (!canCopy.value) {copyMessage.value='请先解决正文错误或未决批注，再导出。';return ''}
     return generatedHtml.value
   }
 
   return {
+    renderError, annotations, canCopy, copyMessage, coverName, coverData, importCover, removeCover,
     markdown,
     selectedThemeId,
     currentTheme,

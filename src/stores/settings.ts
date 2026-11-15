@@ -35,6 +35,8 @@ export const useSettingsStore = defineStore('settings', () => {
 
   // 显示设置
   const showCover = ref(true)
+  const faithfulMode = ref(true)
+  const footerNote = ref('')
   const showToc = ref(true)
 
   // 署名设置（持久化，多篇文章复用）
@@ -56,6 +58,8 @@ export const useSettingsStore = defineStore('settings', () => {
       const displaySaved = localStorage.getItem(DISPLAY_KEY)
       if (displaySaved) {
         const displayParsed = JSON.parse(displaySaved)
+        faithfulMode.value = displayParsed.faithfulMode ?? true
+        footerNote.value = displayParsed.footerNote ?? ''
         showCover.value = displayParsed.showCover ?? true
         showToc.value = displayParsed.showToc ?? true
         authorName.value = displayParsed.authorName ?? ''
@@ -80,6 +84,8 @@ export const useSettingsStore = defineStore('settings', () => {
     try {
       localStorage.setItem(DISPLAY_KEY, JSON.stringify({
         showCover: showCover.value,
+        faithfulMode: faithfulMode.value,
+        footerNote: footerNote.value,
         showToc: showToc.value,
         authorName: authorName.value,
         authorBio: authorBio.value,
@@ -130,6 +136,9 @@ export const useSettingsStore = defineStore('settings', () => {
   load()
 
   return {
+    faithfulMode,
+    footerNote,
+    saveDisplay,
     llmConfig,
     showCover,
     showToc,
